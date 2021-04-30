@@ -53,11 +53,21 @@ enum CW {
     Mul,
     Div,
     Dump,
+    Dot,
 }
 
 fn dup(ds: &mut Stack<String>) {
     let a = ds.peek().unwrap();
     ds.push(a.to_string())
+}
+
+fn dot(ds: &mut Stack<String>) -> String {
+    if ds.length() > 0 {
+	let a: String = ds.pop().unwrap();
+	a
+    } else {
+	"".to_string()
+    }
 }
 
 fn swap(ds: &mut Stack<String>) {
@@ -102,11 +112,12 @@ fn execute_input<'t>(words: Vec<String>, cw: &HashMap<String, CW>, ds: &mut Stac
 	    res = match cw[&w] {
 		CW::Dup => {dup(ds); "ok".to_string()},
 		CW::Swap => {swap(ds); "ok".to_string()},
-		CW::Add => {format!("{} ok", add(ds).unwrap())},
-		CW::Sub => {format!("{} ok", sub(ds).unwrap())},
-		CW::Mul => {format!("{} ok", mul(ds).unwrap())},
-		CW::Div => {format!("{} ok", div(ds).unwrap())},
+		CW::Add => format!("{} ok", add(ds).unwrap()),
+		CW::Sub => format!("{} ok", sub(ds).unwrap()),
+		CW::Mul => format!("{} ok", mul(ds).unwrap()),
+		CW::Div => format!("{} ok", div(ds).unwrap()),
 		CW::Dump => format!("{:?} ok", ds),
+		CW::Dot => format!("{} ok", dot(ds)),
 	    }
 	} else {
 	    ds.push(w.clone());
@@ -126,6 +137,7 @@ fn main() -> Result<()> {
 	"-".to_string() => CW::Sub,
 	"/".to_string() => CW::Div,
 	"*".to_string() => CW::Mul,
+	".".to_string() => CW::Dot,
     };
     print!("rforth> ");
     let _ = stdout().flush();
