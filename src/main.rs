@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::io::{self, stdout, Write, BufRead};
 use std::{
-    collections::{HashMap},
+    collections::{HashSet, HashMap},
 };
 use strum_macros::{Display};
 use maplit::*;
@@ -44,17 +44,6 @@ impl<T> Stack<T> {
 //     }
 // }
 
-#[derive(Display)]
-enum CW {
-    Dup,
-    Swap,
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Dump,
-    Dot,
-}
 
 fn dup(ds: &mut Stack<String>) {
     let a = ds.peek().unwrap();
@@ -105,23 +94,52 @@ fn tokenize(input: String) -> Vec<String> {
     input.split(" ").map(|x| x.to_string()).collect()
 }
 
-fn execute_input<'t>(words: Vec<String>, cw: &HashMap<String, CW>, ds: &mut Stack<String>) -> Result<String> {
+fn save_new_word(words: Vec<String>, aw: &mut HashMap<String, Vec<String>>) -> Result<String> {
+    let word_name = &words[1];
+    let end_index = words.iter().position(|r| r.as_str() == ";").unwrap();
+    let word_def = &words[2..end_index];
+    aw.insert(word_name.clone(), word_def.to_vec());
+    Ok(word_name.to_string())
+}
+
+fn substitue_words(words: Vec<String>, aw: &HashMap<String, Vec<String>>) -> Result<Vec<String>> {
+    let mut swords = words.clone();
+    let mut res: Vec<String> = vec![];
+    for w in &swords {
+	if aw.contains_key(w) {
+	    let subst_index = swords.iter().position(|x| x == w).unwrap();
+	    let s = &swords[0..subst_index];
+	    let e = &swords[subst_index+1..];
+	    let subst = &aw[w];
+	    res = [s, &subst, e].concat();
+	}
+    }
+    Ok(res)
+}
+
+fn execute_input(words: Vec<String>, cw: &HashSet<String>, aw: &mut HashMap<String, Vec<String>>, ds: &mut Stack<String>) -> Result<String> {
     let mut res = "NA".to_string();
-    for w in words {
-	if cw.contains_key(&w) {
-	    res = match cw[&w] {
-		CW::Dup => {dup(ds); "ok".to_string()},
-		CW::Swap => {swap(ds); "ok".to_string()},
-		CW::Add => format!("{} ok", add(ds).unwrap()),
-		CW::Sub => format!("{} ok", sub(ds).unwrap()),
-		CW::Mul => format!("{} ok", mul(ds).unwrap()),
-		CW::Div => format!("{} ok", div(ds).unwrap()),
-		CW::Dump => format!("{:?} ok", ds),
-		CW::Dot => format!("{} ok", dot(ds)),
+    if words.first().unwrap() == ":" {
+	return save_new_word(words, aw)
+    }
+    let subst_words: Vec<String> = substitue_words(words.clone(), aw)?;
+    println!("SUBST {:?}", subst_words);
+    for w in subst_words {
+	if cw.contains(&w) {
+	    res = match w.as_str() {
+		"dup" => {dup(ds); "ok".to_string()},
+		"swap" => {swap(ds); "ok".to_string()},
+		"+" => format!("{} ok", add(ds).unwrap()),
+		"-" => format!("{} ok", sub(ds).unwrap()),
+		"*"  => format!("{} ok", mul(ds).unwrap()),
+		"/" => format!("{} ok", div(ds).unwrap()),
+		"dump" => format!("{:?} ok", ds),
+		"." => format!("{} ok", dot(ds)),
+		_ => "no match".to_string(),
 	    }
 	} else {
 	    ds.push(w.clone());
-	    res = format!("{} ok", w);
+	    res = format!("{:?} ok", w);
 	}
     }
     Ok(res)
@@ -129,22 +147,14 @@ fn execute_input<'t>(words: Vec<String>, cw: &HashMap<String, CW>, ds: &mut Stac
 
 fn main() -> Result<()> {
     let mut ds: Stack<String> = Stack::new();
-    let cw = hashmap! {
-	"swap".to_string() => CW::Swap,
-	"dup".to_string() => CW::Dup,
-	"dump".to_string() => CW::Dump,
-	"+".to_string() => CW::Add,
-	"-".to_string() => CW::Sub,
-	"/".to_string() => CW::Div,
-	"*".to_string() => CW::Mul,
-	".".to_string() => CW::Dot,
-    };
+    let cw = hashset! {"swap".to_string(),"dup".to_string(),"dump".to_string(),"+".to_string(),"-".to_string(),"/".to_string(),"*".to_string(),".".to_string(),};
+    let mut aw: HashMap<String, Vec<String>> = HashMap::new();
     print!("rforth> ");
     let _ = stdout().flush();
     for line in io::stdin().lock().lines() {
 	let input = line.unwrap();
 	let words = tokenize(input);
-	let res = execute_input(words, &cw, &mut ds)?;
+	let res = execute_input(words, &cw, &mut aw, &mut ds)?;
 	println!("...{:#?}", res);
 	print!("rforth> ");
 	let _ = stdout().flush();
